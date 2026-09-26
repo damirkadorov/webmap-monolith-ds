@@ -1,0 +1,210 @@
+# this one action clones game repository, and runs it to generate map images and JSON file containing all shuttles data
+# after it pushes all the generated data to the generated/{datetime} branch
+# which then will be automatically deployed to the gh-pages
+name: Generate webmap
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_render_all:
+        description: 'Force re-render all maps (slow)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    name: Generate webmap data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4.2.2
+        with:
+          path: current-repo
+
+      - name: Checkout Exodus
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: SerbiaStrong-220/Monolith
+          path: monolith
+          ref: master
+
+      - name: Setup Submodule
+        run: |
+          cd monolith
+          git submodule update --init --recursive
+
+      - name: Update Engine Submodules
+        run: |
+          cd monolith/RobustToolbox/
+          git submodule update --init --recursive
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4.1.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Dependencies
+        run: |
+          cd monolith
+          dotnet restore
+
+      - name: Build Server
+        run: |
+          cd monolith
+          dotnet build Content.Server --configuration Release --no-restore /p:WarningsAsErrors=nullable /m
+
+      - name: Generate JSON blobs for prototypes
+        run: |
+          cd monolith
+          dotnet ./bin/Content.Server/Content.Server.dll --cvar autogen.destination_file=data.json
+        continue-on-error: true
+
+      - name: Convert Colossus Central map to grid
+        run: |
+          if [ -f "monolith/Resources/Maps/_Exodus/Outpost/colossus_central.yml" ]; then
+            node current-repo/scripts/convert-colossus.js monolith/Resources/Maps/_Exodus/Outpost/colossus_central.yml
+          fi
+
+      - name: Check which maps need rendering
+        id: check_maps
+        run: |
+          node current-repo/scripts/get-maps-to-render.js monolith current-repo
+        env:
+          FORCE_RENDER_ALL: ${{ github.event.inputs.force_render_all || 'false' }}
+
+      - name: Build Map Renderer
+        if: steps.check_maps.outputs.render_needed == 'true'
+        run: |
+          cd monolith
+          dotnet build Content.MapRenderer --configuration Release --no-restore /p:WarningsAsErrors=nullable /m
+
+      - name: Run Map Renderer
+        if: steps.check_maps.outputs.render_needed == 'true'
+        run: |
+          cd monolith
+          map_args=()
+          while IFS= read -r line; do
+            line="${line%$'\r'}"
+            [ -n "$line" ] && map_args+=("$line")
+          done < ../current-repo/maps_to_render.txt
+
+          if [ "${#map_args[@]}" -gt 0 ]; then
+            echo "Rendering ${#map_args[@]} maps..."
+            dotnet run --project Content.MapRenderer --no-build -- "${map_args[@]}"
+          fi
+        continue-on-error: true
+
+      - name: Create timestamped branch name
+        id: vars
+        run: |
+          echo "BRANCH_NAME=generated/$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
+
+      - name: Create new branch in current repo
+        run: |
+          cd current-repo
+          git checkout -b ${{ env.BRANCH_NAME }}
+
+      - name: Copy generated files into current repo
+        run: |
+          # Copy map images unconditionally
+          map_images_dirs=()
+          while IFS= read -r dir; do
+            map_images_dirs+=("$dir")
+          done < <(find monolith -type d -name "MapImages")
+
+          if [ "${#map_images_dirs[@]}" -eq 0 ]; then
+            echo "No MapImages directories found, skipping PNG copy"
+          else
+            find "${map_images_dirs[@]}" -name "*.png" -type f -exec cp -t current-repo/static/ {} +
+          fi
+
+          # Merge vessels_data.json with existing shuttles.json
+          # Keep manually-managed groups (syndicate, viper, etc.) from the repo;
+          # replace everything else with data from the game server.
+          if [ -f monolith/bin/Content.Server/data/vessels_data.json ]; then
+            node - <<'EOF'
+          const fs = require('fs');
+          const existing = JSON.parse(fs.readFileSync('current-repo/src/lib/data/shuttles.json', 'utf-8'));
+          const generated = JSON.parse(fs.readFileSync('monolith/bin/Content.Server/data/vessels_data.json', 'utf-8'));
+
+          for (const s of generated) {
+            if (s.group === 'scrap') s.group = 'scrapyard';
+            if (s.group === 'mieyo') s.group = 'mms';
+          }
+
+          // Groups managed manually in the repo — never overwritten by the game server output
+          const MANUAL_GROUPS = ['syndicate', 'viper', 'mms', 'scrapyard', 'hostile_ai', 'eighth_fleet', 'companies', 'station'];
+
+          const manual = existing.filter(s => MANUAL_GROUPS.includes(s.group));
+          const generatedNonManual = generated.filter(s => !MANUAL_GROUPS.includes(s.group));
+          const merged = [...generatedNonManual, ...manual];
+
+          fs.writeFileSync('current-repo/src/lib/data/shuttles.json', JSON.stringify(merged, null, 2), 'utf-8');
+          console.log(`Merged: ${generatedNonManual.length} from game + ${manual.length} manual = ${merged.length} total`);
+          EOF
+          else
+            echo "vessels_data.json not found, keeping existing shuttles.json"
+          fi
+      - name: Copy ShuttleEvent maps to current repo
+        run: |
+          if [ -d "monolith/Resources/Maps/_Exodus/ShuttleEvent" ]; then
+            mkdir -p current-repo/ShuttleEvent
+            cp monolith/Resources/Maps/_Exodus/ShuttleEvent/*.yml current-repo/ShuttleEvent/ 2>/dev/null || echo "No ShuttleEvent YML files found"
+          else
+            echo "ShuttleEvent directory not found in game repository"
+          fi
+
+      - name: Copy POI maps to current repo
+        run: |
+          mkdir -p current-repo/POI
+          if [ -d "monolith/Resources/Maps/_Mono/POI" ]; then
+            cp monolith/Resources/Maps/_Mono/POI/*.yml current-repo/POI/ 2>/dev/null || true
+            cp monolith/Resources/Maps/_Mono/POI/Dungeons/*.yml current-repo/POI/ 2>/dev/null || true
+          fi
+
+          if [ -d "monolith/Resources/Maps/_Exodus/POI" ]; then
+            cp monolith/Resources/Maps/_Exodus/POI/*.yml current-repo/POI/ 2>/dev/null || echo "No POI YML files found"
+            cp monolith/Resources/Maps/_Exodus/POI/Dungeons/*.yml current-repo/POI/ 2>/dev/null || true
+          fi
+
+          # Also copy converted Colossus Central so parse-shuttle-event can generate its station entry
+          if [ -f "monolith/Resources/Maps/_Exodus/Outpost/colossus_central.yml" ]; then
+            cp monolith/Resources/Maps/_Exodus/Outpost/colossus_central.yml current-repo/POI/ 2>/dev/null || true
+          fi
+
+          # Exclude unwanted POI stations from generation and repository
+          rm -f current-repo/POI/hospital.yml current-repo/POI/beaconstation_a.yml current-repo/POI/beaconstation_wilds.yml current-repo/POI/beaconstation_empty.yml current-repo/POI/azimuth_lobby.yml current-repo/POI/jupiter.yml current-repo/POI/pdvhelios_hw.yml current-repo/POI/tsfmchalcyon_hw.yml current-repo/POI/surface_outpost_desert.yml current-repo/POI/usspbaikal.yml current-repo/POI/zetanode.yml current-repo/POI/caelestinus_central.yml current-repo/POI/colonial.yml
+
+      - name: Generate Eighth Fleet shuttles and POI stations
+        run: |
+          cd current-repo
+          if [ "$(ls -A ShuttleEvent/*.yml 2>/dev/null)" ] || [ "$(ls -A POI/*.yml 2>/dev/null)" ]; then
+            node scripts/parse-shuttle-event.js
+          else
+            echo "No ShuttleEvent or POI files to process, skipping generated entries"
+          fi
+
+      - name: Update map checksums
+        run: |
+          node current-repo/scripts/update-maps-checksums.js monolith current-repo
+
+      - name: Commit and push
+        run: |
+          cd current-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/
+          git add static/
+          git add scripts/maps_checksums.json 2>/dev/null || true
+          git add ShuttleEvent/ 2>/dev/null || true
+          git add POI/ 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Generate webmap data for ${{ env.BRANCH_NAME }}"
+            git push origin ${{ env.BRANCH_NAME }}
+          fi

@@ -1,0 +1,91 @@
+{
+	"name": "Monolith-DS - Webmap",
+	"base_path": "webmap-monolith-ds",
+	"wiki_url": "https://wiki.deadspace14.net",
+	"shuttles": {
+		"sizes": {
+			"micro": "Микро",
+			"small": "Малый",
+			"medium": "Средний",
+			"large": "Крупный"
+		},
+		"shipyard": {
+			"security": "ТСФ",
+			"ussp": "СССП",
+			"sr": "Колосс-Централ",
+			"blackmarket": "Династия Фаэтон",
+			"syndicate": "Синдикат",
+			"expedition": "Экспедиционные",
+			"medical": "Медицинские",
+			"shipyard": "Гражданские",
+			"scrapyard": "Мусорная верфь",
+			"custom": "Особые",
+			"eighth_fleet": "Восьмой флот",
+			"hostile_ai": "Враждебные ИИ",
+			"station": "Станции"
+		},
+		"hullClasses": {
+			"battleship": "Линкор",
+			"carrier": "Авианосец",
+			"cruiser": "Крейсер",
+			"destroyer": "Эсминец",
+			"frigate": "Фрегат",
+			"corvette": "Корвет",
+			"fighter": "Истребитель",
+			"shuttle": "Шаттл / Катер",
+			"station": "Станция"
+		},
+		"classes": {
+			"detainment": "Конвойный",
+			"detective": "Следственный",
+			"fighter": "Боевой",
+			"patrol": "Патрульный",
+			"pursuit": "Перехватчик",
+			"expedition": "Экспедиционный",
+			"scrapyard": "Полуразрушенный",
+			"salvage": "Шахтёрский",
+			"science": "Научный",
+			"cargo": "Транспортный",
+			"chemistry": "Химический",
+			"botany": "Ботанический",
+			"engineering": "Инженерный",
+			"atmospherics": "Газодобывающий",
+			"mercenary": "Наёмнический",
+			"medical": "Медицинский",
+			"civilian": "Гражданский",
+			"kitchen": "ОбщеПит",
+			"syndicate": "Синдикат",
+			"pirate": "Династия Фаэтон"
+		},
+		"engines": {
+			"ame": "ДАМ",
+			"teg": "ТЭГ",
+			"supermatter": "Суперматерия",
+			"tesla": "Тесла",
+			"singularity": "Сингулярность",
+			"solar": "Солнечные панели",
+			"rtg": "РИТЭГ",
+			"apu": "ВСУ шаттла",
+			"welding": "Сварочное топливо",
+			"plasma": "Плазма",
+			"uranium": "Уран",
+			"bananium": "Бананиум",
+			"nfr": "Ядерный реактор"
+		}
+	},
+	"shipyard": {
+		"security": "#0000ff",
+		"ussp": "#fe0000",
+		"sr": "#0bc051",
+		"blackmarket": "#c0960b",
+		"syndicate": "#cc0000",
+		"expedition": "#a44d00",
+		"medical": "#0b2fc0",
+		"shipyard": "#0b9fc0",
+		"scrapyard": "#808080",
+		"custom": "#9c27b0",
+		"eighth_fleet": "#800080",
+		"hostile_ai": "#ff3366",
+		"station": "#5f9ea0"
+	}
+}
