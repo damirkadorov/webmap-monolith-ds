@@ -35,8 +35,9 @@ export function normalizeGroup(group: string): ShuttleGroup {
 	if (lower === 'shipyard') return 'shipyard' as ShuttleGroup;
 	if (lower === 'custom') return 'custom' as ShuttleGroup;
 	if (lower === 'eighth_fleet' || lower === 'eighthfleet') return 'eighth_fleet' as ShuttleGroup;
-	if (lower === 'hostile_ai') return 'hostile_ai' as ShuttleGroup;
-	if (lower === 'station') return 'station' as ShuttleGroup;
+	if (lower === 'hostile_ai' || lower === 'ai' || lower === 'drone')
+		return 'hostile_ai' as ShuttleGroup;
+	if (lower === 'station' || lower === 'poi') return 'station' as ShuttleGroup;
 	return group as ShuttleGroup;
 }
 

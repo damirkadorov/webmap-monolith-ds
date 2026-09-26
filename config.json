@@ -18,11 +18,11 @@
 			"expedition": "Экспедиционные",
 			"medical": "Медицинские",
 			"shipyard": "Гражданские",
-			"scrapyard": "Мусорная верфь",
-			"custom": "Особые",
+			"scrapyard": "Мусорная верфь / Обломки",
+			"custom": "Особые / Химера",
 			"eighth_fleet": "Восьмой флот",
 			"hostile_ai": "Враждебные ИИ",
-			"station": "Станции"
+			"station": "Станции и POI"
 		},
 		"hullClasses": {
 			"battleship": "Линкор",
@@ -32,10 +32,13 @@
 			"frigate": "Фрегат",
 			"corvette": "Корвет",
 			"fighter": "Истребитель",
+			"drone": "Боевой дрон",
 			"shuttle": "Шаттл / Катер",
+			"salvage": "Обломок / Руина",
 			"station": "Станция"
 		},
 		"classes": {
+			"drone": "Дрон",
 			"detainment": "Конвойный",
 			"detective": "Следственный",
 			"fighter": "Боевой",

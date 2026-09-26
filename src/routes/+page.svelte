@@ -36,7 +36,9 @@
 		'frigate',
 		'corvette',
 		'fighter',
+		'drone',
 		'shuttle',
+		'salvage',
 		'station'
 	];
 
